@@ -1,0 +1,66 @@
+name: StormBreaker OriginSU Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout StormBreaker
+        uses: actions/checkout@v4
+        with:
+          ref: a
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache \
+            curl flex git libelf-dev libssl-dev \
+            libncurses-dev lld python3 zip \
+            rsync
+
+      - name: Integrate OriginSU
+        run: |
+          curl -LSs \
+            https://raw.githubusercontent.com/samakshkambxj/OriginSU/main/kernel/setup.sh \
+            | bash -
+
+      - name: Enable OriginSU in defconfig
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("build.sh")
+          s = p.read_text()
+
+          needle = "make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig"
+
+          if needle not in s:
+              raise SystemExit("Miatoll defconfig command not found")
+
+          addition = needle + """
+          scripts/config --file out/.config -e KSU
+          make O=out ARCH=arm64 olddefconfig
+          """
+
+          p.write_text(s.replace(needle, addition, 1))
+          PY
+
+      - name: Build Kernel
+        run: |
+          bash build.sh
+
+      - name: Upload Kernel ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormBreaker-OriginSU-Miatoll
+          path: AnyKernel/Stormbreaker-miatoll-*.zip
+          if-no-files-found: error
