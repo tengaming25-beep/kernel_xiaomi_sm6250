@@ -47,7 +47,7 @@ jobs:
               raise SystemExit("Miatoll defconfig command not found")
 
           addition = needle + """
-          scripts/config --file out/.config -e KSU
+          scripts/config --file out/.config -e KSU -e KSU_MANUAL_HOOK
           make O=out ARCH=arm64 olddefconfig
           """
 
